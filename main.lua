@@ -174,6 +174,17 @@ function KoptInterface:renderPage(doc, ...)
             if not is_colored then
                 tile.derainbow_bb =
                     remove_moire_from_tile(tile)
+
+                -- Set handler for freeing derainbow blitbuffer
+                local original_onFree = tile.onFree
+                tile.onFree = function(_self)
+                    original_onFree(_self)
+
+                    if _self.derainbow_bb then
+                        logger.dbg("TileCacheItem: free derainbow blitbuffer", _self.derainbow_bb)
+                        _self.derainbow_bb:free()
+                    end
+                end
             end
         end
 
