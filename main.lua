@@ -164,6 +164,7 @@ local function apply_derainbow_to_tile(tile)
 
     if not is_colored then
         tile.derainbow_bb = remove_moire_from_tile(tile)
+        tile.size = tile.size + tonumber(tile.bb.stride) * tile.bb.h
 
         -- Set handler for freeing derainbow blitbuffer
         local original_onFree = tile.onFree
