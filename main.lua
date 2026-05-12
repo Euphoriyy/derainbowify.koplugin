@@ -1,7 +1,8 @@
 local Blitbuffer = require("ffi/blitbuffer")
+local DataStorage = require("datastorage")
 local Device = require("device")
 local Dispatcher = require("dispatcher")
-local DataStorage = require("datastorage")
+local Document = require("document/document")
 local KoptInterface = require("document/koptinterface")
 local KoptOptions = require("ui/data/koptoptions")
 local ReaderConfig = require("apps/reader/modules/readerconfig")
@@ -135,11 +136,7 @@ local function remove_moire_from_tile(tile)
         tile.bb.h
     )
 
-    local ptr = ffi.cast(
-        "uint8_t*",
-        filtered_bb.data
-    )
-
+    local ptr = ffi.cast("uint8_t*", filtered_bb.data)
     moire.remove_moire(
         ptr,
         filtered_bb.w,
@@ -151,42 +148,41 @@ local function remove_moire_from_tile(tile)
     return filtered_bb
 end
 
+local function apply_derainbow_to_tile(tile)
+    if not tile or tile.derainbow_checked then return end
+
+    tile.derainbow_checked = true
+
+    local ptr = ffi.cast("uint8_t*", tile.bb.data)
+    local is_colored = color_detect.is_page_colored(
+        ptr,
+        tile.bb.w,
+        tile.bb.h,
+        tile.bb.stride,
+        COLOR_TOLERANCE
+    )
+
+    if not is_colored then
+        tile.derainbow_bb = remove_moire_from_tile(tile)
+
+        -- Set handler for freeing derainbow blitbuffer
+        local original_onFree = tile.onFree
+        tile.onFree = function(_self)
+            original_onFree(_self)
+            if _self.derainbow_bb then
+                logger.dbg("TileCacheItem: free derainbow blitbuffer", _self.derainbow_bb)
+                _self.derainbow_bb:free()
+            end
+        end
+    end
+end
+
 local original_KoptInterface_renderPage = KoptInterface.renderPage
 function KoptInterface:renderPage(doc, ...)
     local tile = original_KoptInterface_renderPage(self, doc, ...)
 
     if doc.configurable.derainbow == 1 then
-        if not tile.derainbow_checked then
-            tile.derainbow_checked = true
-
-            local ptr =
-                ffi.cast("uint8_t*", tile.bb.data)
-
-            local is_colored =
-                color_detect.is_page_colored(
-                    ptr,
-                    tile.bb.w,
-                    tile.bb.h,
-                    tile.bb.stride,
-                    COLOR_TOLERANCE
-                )
-
-            if not is_colored then
-                tile.derainbow_bb =
-                    remove_moire_from_tile(tile)
-
-                -- Set handler for freeing derainbow blitbuffer
-                local original_onFree = tile.onFree
-                tile.onFree = function(_self)
-                    original_onFree(_self)
-
-                    if _self.derainbow_bb then
-                        logger.dbg("TileCacheItem: free derainbow blitbuffer", _self.derainbow_bb)
-                        _self.derainbow_bb:free()
-                    end
-                end
-            end
-        end
+        apply_derainbow_to_tile(tile)
 
         if tile.derainbow_bb then
             local output_tile = {}
@@ -199,6 +195,20 @@ function KoptInterface:renderPage(doc, ...)
     end
 
     return tile
+end
+
+-- Apply the filter to pre-rendered pages
+local original_Document_hintPage = Document.hintPage
+function Document:hintPage(pageno, zoom, rotation, gamma)
+    if self.configurable.derainbow ~= 1 then
+        original_Document_hintPage(self, pageno, zoom, rotation, gamma)
+        return
+    end
+
+    logger.dbg("hinting page", pageno)
+
+    local tile = self:renderPage(pageno, nil, zoom, rotation, gamma, true)
+    apply_derainbow_to_tile(tile)
 end
 
 -----------------------------------------------------
