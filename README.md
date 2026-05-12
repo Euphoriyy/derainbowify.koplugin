@@ -1,5 +1,10 @@
 # derainbowify.koplugin
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/Euphoriyy/derainbowify.koplugin)](https://github.com/Euphoriyy/derainbowify.koplugin/releases)
+[![Lua](https://img.shields.io/badge/Lua-%232C2D72.svg?logo=lua&logoColor=white)](#)
+[![C](https://img.shields.io/badge/C-00599C?logo=c&logoColor=white)](#)
+
 <img src="img/option.png" style="width:100%; height:auto;">
 
 This plugin adds an option to remove the rainbow artifacts produced on Kaleido 3 color e-ink screens. It is useful for black and white manga (and other comics) that use image patterns which produce these artifacts.
