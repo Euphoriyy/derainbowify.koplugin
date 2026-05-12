@@ -9,7 +9,7 @@
 
 This plugin adds an option to remove the rainbow artifacts produced on Kaleido 3 color e-ink screens. It is useful for black and white manga (and other comics) that use image patterns which produce these artifacts.
 
-It uses fourier transforms on-the-fly to directly target the moire pattern responsible for the rainbow effect.
+It uses fourier transforms on-the-fly to directly target the moiré patterns responsible for the rainbow effect.
 Compared to the method used for reducing the rainbow effect that is found in the official Kobo software, the method utilized by this plugin does *not* negatively affect the image by introducing blur, instead retaining sharpness.
 
 Currently the filtering does make rendering pages for the first time slower, but the goal is to gradually make improvements to the performance.

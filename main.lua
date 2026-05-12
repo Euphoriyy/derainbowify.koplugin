@@ -15,6 +15,8 @@ local _ = require("gettext")
 
 -- The level of tolerance for detecting whether a page is colored
 local COLOR_TOLERANCE = 20
+-- The strength of the filter used to remove the moiré patterns
+local FILTER_STRENGTH = 0.9
 
 local Derainbowify = WidgetContainer:extend({
     name = "derainbowify",
@@ -143,7 +145,7 @@ local function remove_moire_from_tile(tile)
         filtered_bb.w,
         filtered_bb.h,
         filtered_bb.stride,
-        0.9
+        FILTER_STRENGTH
     )
 
     return filtered_bb
