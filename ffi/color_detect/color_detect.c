@@ -144,39 +144,20 @@ EXPORT bool is_page_colored(uint8_t *data, int width, int height, int stride, in
     const int BLOCK_WIDTH = 8;
     const int BLOCK_HEIGHT = 16;
 
-    volatile bool found_colored = false;
-
     for (int y = 0; y < height; y += BLOCK_HEIGHT)
     {
-
         for (int x = 0; x < width; x += BLOCK_WIDTH)
         {
-
-            if (found_colored)
-            {
-                continue;
-            }
-
-            bool block_has_color = false;
-
 #ifdef __ARM_NEON
-
-            block_has_color = is_block_colored_neon(data, stride, x, y, BLOCK_WIDTH, BLOCK_HEIGHT,
-                                                    width, height, tolerance);
-
+            if (is_block_colored_neon(data, stride, x, y, BLOCK_WIDTH, BLOCK_HEIGHT, width, height,
+                                      tolerance))
 #else
-
-            block_has_color = is_block_colored_scalar(data, stride, x, y, BLOCK_WIDTH, BLOCK_HEIGHT,
-                                                      width, height, tolerance);
-
+            if (is_block_colored_scalar(data, stride, x, y, BLOCK_WIDTH, BLOCK_HEIGHT, width,
+                                        height, tolerance))
 #endif
-
-            if (block_has_color)
-            {
-                found_colored = true;
-            }
+                return true;
         }
     }
 
-    return found_colored;
+    return false;
 }
