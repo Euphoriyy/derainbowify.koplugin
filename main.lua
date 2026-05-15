@@ -111,7 +111,7 @@ end
 
 for i, section in ipairs(KoptOptions) do
     if section.icon == "appbar.contrast" then
-        table.insert(section.options, #section.options - 2, {
+        table.insert(section.options, 3, {
             name = "derainbow",
             name_text = _("Derainbow"),
             toggle = { _("off"), _("on") },
