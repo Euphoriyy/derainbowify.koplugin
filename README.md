@@ -26,7 +26,18 @@ Made for koreader/koreader#11877.
 ## Compatibility
 By design, this plugin is designed for e-readers that use color e-ink such as the Kobo Libra Color, Kindle Colorsoft, and Pocketbook Inkpad Color 3.
 
-For now, only the Kobo Libra Color has been fully tested and confirmed to be supported.
+For now, only the Kobo Libra Color has been fully tested, but the other devices are supported.
+
+## Build
+In order to compile and test the plugin yourself, you may run the `package.sh` script found at the root of this repository. It will produce a ZIP file containing the plugin located at `/tmp/derainbowify.koplugin.zip`.
+
+The dependencies for compilation are `make`, `gcc`, and each of the following toolchains found from KOReader's [koxtoolchain](https://github.com/koreader/koxtoolchain/releases):
+- Kobo
+- Kindle
+- KindleHF
+- Pocketbook
+
+Please ensure you have the necessary toolchains added to your path.
 
 ## Acknowledgements
 - Adapted from the original amazing work done by [@Its-my-right](https://github.com/Its-my-right) for the Pocketbook Inkpad Color 3 [here](https://github.com/Its-my-right/pocketbook_cfa_interference_breaker).

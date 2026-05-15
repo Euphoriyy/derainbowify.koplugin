@@ -8,7 +8,7 @@ WORK_DIR=$(mktemp -d)
 trap "rm -rf '$WORK_DIR'" EXIT
 
 mkdir -p "$WORK_DIR/derainbowify.koplugin"
-make armv7 -C ffi
+make all -C ffi
 cp "$SCRIPT_DIR/ffi/build"/*.so "$WORK_DIR/derainbowify.koplugin/"
 cp "$SCRIPT_DIR/LICENSE" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/main.lua" "$SCRIPT_DIR/_meta.lua" "$WORK_DIR/derainbowify.koplugin/"
 

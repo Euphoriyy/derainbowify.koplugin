@@ -33,18 +33,40 @@ end
 -----------------------------------------------------
 
 -- Load FFI libraries
+local function get_platform()
+    if Device:isDesktop() or Device:isEmulator() then
+        return "amd64"
+    elseif Device:isKobo() then
+        return "kobo"
+    elseif Device:isPocketbook() then
+        return "pocketbook"
+    elseif Device:isKindle() then
+        if Device:isHardFP() then
+            return "kindlehf"
+        end
+        return "kindle"
+    end
+    return nil
+end
+
+local platform = get_platform()
+if not platform then
+    logger.warn("this platform is not supported by derainbowify")
+    return
+end
+
 local PLUGIN_DIR = DataStorage:getDataDir() .. "/plugins/derainbowify.koplugin"
 
-local color_detect_ok, color_detect = pcall(ffi.load, PLUGIN_DIR .. "/color_detect.so")
-local moire_ok, moire = pcall(ffi.load, PLUGIN_DIR .. "/moire_filter.so")
+local color_detect_ok, color_detect = pcall(ffi.load, PLUGIN_DIR .. string.format("/color_detect-%s.so", platform))
+local moire_ok, moire = pcall(ffi.load, PLUGIN_DIR .. string.format("/moire_filter-%s.so", platform))
 
 if not color_detect_ok then
-    logger.warn("failed to load color_detect.so")
+    logger.warn(string.format("failed to load color_detect-%s.so", platform))
     logger.info(color_detect)
 end
 
 if not moire_ok then
-    logger.warn("failed to load moire_filter_fftw_eco.so")
+    logger.warn(string.format("failed to load moire_filter-%s.so", platform))
     logger.info(moire)
 end
 

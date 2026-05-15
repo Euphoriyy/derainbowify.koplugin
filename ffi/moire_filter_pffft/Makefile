@@ -1,4 +1,5 @@
 CC ?= gcc
+PLATFORM ?= amd64
 
 COMMON_FLAGS = \
     -O3 \
@@ -13,13 +14,19 @@ COMMON_FLAGS = \
 ARM_FLAGS = \
     -march=armv7-a \
     -mfpu=neon-vfpv4 \
-    -mfloat-abi=hard \
 	-ffast-math \
 	-funsafe-math-optimizations \
 	-ftree-vectorize
 
-ifeq ($(findstring arm-kobo-linux-gnueabihf,$(CC)),arm-kobo-linux-gnueabihf)
-    CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS)
+HARD_FLOAT_FLAG = -mfloat-abi=hard
+SOFT_FLOAT_FLAG = -mfloat-abi=softfp
+
+ifneq ($(PLATFORM),amd64)
+    ifeq ($(findstring gnueabihf,$(CC)),gnueabihf)
+        CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(HARD_FLOAT_FLAG)
+    else
+        CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(SOFT_FLOAT_FLAG)
+    endif
 else
     CFLAGS = $(COMMON_FLAGS)
 endif
@@ -33,7 +40,7 @@ SRC = \
     moire_filter_pffft.c \
     pffft.c
 
-OUT = ../build/moire_filter.so
+OUT = ../build/moire_filter-$(PLATFORM).so
 
 all: $(OUT)
 
