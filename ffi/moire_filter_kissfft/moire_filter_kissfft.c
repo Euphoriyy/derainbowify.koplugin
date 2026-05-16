@@ -36,7 +36,7 @@ static int g_initialized = 0;
  * ============================================================
  */
 
-void cleanup_kissfft_resources(void)
+void cleanup_resources(void)
 {
     if (g_fft_cfg)
     {
@@ -63,12 +63,12 @@ void cleanup_kissfft_resources(void)
     g_initialized = 0;
 }
 
-int init_kissfft_resources(int width, int height)
+int init_resources(int width, int height)
 {
     if (g_initialized && g_width == width && g_height == height)
         return 0;
 
-    cleanup_kissfft_resources();
+    cleanup_resources();
 
     int dims[2] = {height, width};
 
@@ -90,7 +90,7 @@ int init_kissfft_resources(int width, int height)
     return 0;
 
 fail:
-    cleanup_kissfft_resources();
+    cleanup_resources();
     return -1;
 }
 
@@ -168,7 +168,7 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
 
     strength = strength < 0.0f ? 0.0f : (strength > 1.0f ? 1.0f : strength);
 
-    if (init_kissfft_resources(width, height) != 0)
+    if (init_resources(width, height) != 0)
     {
         fprintf(stderr, "kissfft init failed\n");
         return;
@@ -231,4 +231,4 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
  */
 
 EXPORT int init_moire_resources(void) { return 0; }
-EXPORT void cleanup_moire_resources(void) { cleanup_kissfft_resources(); }
+EXPORT void cleanup_moire_resources(void) { cleanup_resources(); }

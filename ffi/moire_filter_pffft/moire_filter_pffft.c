@@ -32,7 +32,7 @@ static int g_initialized = 0;
 
 /* Cleanup + Init */
 
-void cleanup_kissfft_resources(void)
+void cleanup_resources(void)
 {
     if (g_setup_w)
     {
@@ -125,14 +125,14 @@ static void build_mask(int width, int height)
     }
 }
 
-int init_kissfft_resources(int width, int height)
+int init_resources(int width, int height)
 {
     if (g_initialized && g_width == width && g_height == height)
     {
         return 0;
     }
 
-    cleanup_kissfft_resources();
+    cleanup_resources();
 
     int pw = next_pffft_len(width);
     int ph = next_pffft_len(height);
@@ -164,7 +164,7 @@ int init_kissfft_resources(int width, int height)
     return 0;
 
 fail:
-    cleanup_kissfft_resources();
+    cleanup_resources();
     return -1;
 }
 
@@ -224,7 +224,7 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
     if (strength > 1.0f)
         strength = 1.0f;
 
-    if (init_kissfft_resources(width, height) != 0)
+    if (init_resources(width, height) != 0)
     {
         fprintf(stderr, "pffft init failed\n");
         return;
@@ -329,4 +329,4 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
 
 EXPORT int init_moire_resources(void) { return 0; }
 
-EXPORT void cleanup_moire_resources(void) { cleanup_kissfft_resources(); }
+EXPORT void cleanup_moire_resources(void) { cleanup_resources(); }
