@@ -28,7 +28,7 @@ By design, this plugin is designed for e-readers that use color e-ink such as th
 
 For now, only the Kobo Libra Color has been fully tested, but the other devices are supported.
 
-## Build
+## Building
 In order to compile and test the plugin yourself, you may run the `package.sh` script found at the root of this repository. It will produce a ZIP file containing the plugin located at `/tmp/derainbowify.koplugin.zip`.
 
 The dependencies for compilation are `make`, `gcc`, and each of the following toolchains found from KOReader's [koxtoolchain](https://github.com/koreader/koxtoolchain/releases):
