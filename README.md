@@ -33,7 +33,7 @@ In order to compile and test the plugin yourself, you may run the `package.sh` s
 
 The dependencies for compilation are `make`, `gcc`, and each of the following toolchains found from KOReader's [koxtoolchain](https://github.com/koreader/koxtoolchain/releases):
 - Kobo
-- Kindle
+- Kindle5
 - KindleHF
 - Pocketbook
 
