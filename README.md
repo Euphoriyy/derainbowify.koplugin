@@ -12,6 +12,8 @@ This plugin adds an option to remove the rainbow artifacts produced on Kaleido 3
 It uses fourier transforms on-the-fly to directly target the moiré patterns responsible for the rainbow effect.
 Compared to the method used for reducing the rainbow effect that is found in the official Kobo software, the method utilized by this plugin does *not* negatively affect the image by introducing blur, instead retaining sharpness.
 
+The methodology for this is explained in detail by [this video](https://www.youtube.com/watch?v=Dw2HTJCGMhw) by [@axu2](https://github.com/axu2), the maintainer of [Kindle Comic Converter](https://github.com/ciromattia/kcc).
+
 Currently the filtering does make rendering pages for the first time slower, but the goal is to gradually make improvements to the performance.
 
 Made for koreader/koreader#11877.
@@ -41,7 +43,7 @@ Please ensure you have the necessary toolchains added to your path.
 
 ## Acknowledgements
 - Adapted from the original amazing work done by [@Its-my-right](https://github.com/Its-my-right) for the Pocketbook Inkpad Color 3 [here](https://github.com/Its-my-right/pocketbook_cfa_interference_breaker).
-- Based on the technique used in [Kindle Comic Converter](https://github.com/ciromattia/kcc).
+- Based on the technique used in [Kindle Comic Converter](https://github.com/ciromattia/kcc) and the great video presentation by [@axu2](https://github.com/axu2).
 - Inspired by the idea from [@Blendman974](https://github.com/Blendman974) to use fast fourier transforms to solve this issue.
 - This plugin uses the following libraries for fast fourier transform implementations: [kissfft](https://github.com/mborgerding/kissfft), [pffft](https://bitbucket.org/jpommier/pffft), and [pocketfft](https://github.com/hayguen/pocketfft).
 - The packaging system in use is based on work from [ComicReader](https://github.com/KORComic/comicreader.koplugin) by [@OGKevin](https://github.com/OGKevin).
