@@ -1,4 +1,5 @@
-DIRS := color_detect moire_filter_pffft
+BACKEND := pffft
+DIRS    := color_detect moire_filter_$(BACKEND)
 
 .PHONY: amd64 arm kobo kindle kindlehf pocketbook build clean
 
