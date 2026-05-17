@@ -159,6 +159,9 @@ local function remove_moire_from_tile(tile)
     )
 
     local ptr = ffi.cast("uint8_t*", filtered_bb.data)
+
+    local t0 = os.clock()
+
     moire.remove_moire(
         ptr,
         filtered_bb.w,
@@ -166,6 +169,10 @@ local function remove_moire_from_tile(tile)
         filtered_bb.stride,
         FILTER_STRENGTH
     )
+
+    local t1 = os.clock()
+    logger.dbg(string.format("remove_moire: %d x %d = %.1f ms",
+        filtered_bb.w, filtered_bb.h, (t1 - t0) * 1000))
 
     return filtered_bb
 end
