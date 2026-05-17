@@ -4,6 +4,8 @@
 [![GitHub Release](https://img.shields.io/github/v/release/Euphoriyy/derainbowify.koplugin)](https://github.com/Euphoriyy/derainbowify.koplugin/releases)
 [![Lua](https://img.shields.io/badge/Lua-%232C2D72.svg?logo=lua&logoColor=white)](#)
 [![C](https://img.shields.io/badge/C-00599C?logo=c&logoColor=white)](#)
+[![C++](https://img.shields.io/badge/C%2B%2B-00599C?style=flat&logo=c%2B%2B&logoColor=white)](#)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Euphoriyy/derainbowify.koplugin/total.svg)](https://github.com/Euphoriyy/derainbowify.koplugin/releases)
 
 <img src="img/option.png" style="width:100%; height:auto;">
 
