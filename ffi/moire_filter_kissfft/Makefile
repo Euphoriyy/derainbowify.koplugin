@@ -1,4 +1,4 @@
-CC ?= gcc
+CC       ?= gcc
 PLATFORM ?= amd64
 
 COMMON_FLAGS = \

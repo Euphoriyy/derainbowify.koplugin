@@ -43,7 +43,7 @@ Please ensure you have the necessary toolchains added to your path.
 - Adapted from the original amazing work done by [@Its-my-right](https://github.com/Its-my-right) for the Pocketbook Inkpad Color 3 [here](https://github.com/Its-my-right/pocketbook_cfa_interference_breaker).
 - Based on the technique used in [Kindle Comic Converter](https://github.com/ciromattia/kcc).
 - Inspired by the idea from [@Blendman974](https://github.com/Blendman974) to use fast fourier transforms to solve this issue.
-- This plugin uses the following libraries for fast fourier transform implementations: [kissfft](https://github.com/mborgerding/kissfft) and [pffft](https://bitbucket.org/jpommier/pffft).
+- This plugin uses the following libraries for fast fourier transform implementations: [kissfft](https://github.com/mborgerding/kissfft), [pffft](https://bitbucket.org/jpommier/pffft), and [pocketfft](https://github.com/hayguen/pocketfft).
 - The packaging system in use is based on work from [ComicReader](https://github.com/KORComic/comicreader.koplugin) by [@OGKevin](https://github.com/OGKevin).
 
 ## Support

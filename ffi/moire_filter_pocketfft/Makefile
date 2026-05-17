@@ -1,4 +1,4 @@
-CC       ?= gcc
+CXX      ?= g++
 PLATFORM ?= amd64
 
 COMMON_FLAGS = \
@@ -7,38 +7,37 @@ COMMON_FLAGS = \
     -shared \
     -Wall \
     -fvisibility=hidden \
-    -std=gnu99 \
+    -std=c++11 \
     -D_GNU_SOURCE \
     -D_DEFAULT_SOURCE
 
 ARM_FLAGS = \
     -march=armv7-a \
     -mfpu=neon-vfpv4 \
-	-ffast-math \
-	-funsafe-math-optimizations \
-	-ftree-vectorize
+    -ffast-math \
+    -funsafe-math-optimizations \
+    -ftree-vectorize
 
 HARD_FLOAT_FLAG = -mfloat-abi=hard
 SOFT_FLOAT_FLAG = -mfloat-abi=softfp
 
 ifneq ($(PLATFORM),amd64)
-    ifeq ($(findstring gnueabihf,$(CC)),gnueabihf)
-        CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(HARD_FLOAT_FLAG)
+    ifeq ($(findstring gnueabihf,$(CXX)),gnueabihf)
+        CXXFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(HARD_FLOAT_FLAG)
     else
-        CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(SOFT_FLOAT_FLAG)
+        CXXFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(SOFT_FLOAT_FLAG)
     endif
 else
-    CFLAGS = $(COMMON_FLAGS)
+    CXXFLAGS = $(COMMON_FLAGS)
 endif
 
 LDFLAGS = \
     -Wl,--export-dynamic \
     -Wl,-rpath,'$$ORIGIN' \
-    -lm
+    -lm \
+	-lpthread
 
-SRC = \
-    moire_filter_pffft.c \
-    pffft.c
+SRC = moire_filter_pocketfft.cpp
 
 OUT = ../build/moire_filter-$(PLATFORM).so
 
@@ -46,7 +45,7 @@ all: $(OUT)
 
 $(OUT): $(SRC)
 	mkdir -p ../build
-	$(CC) $(CFLAGS) -o $@ $(SRC) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $(SRC) $(LDFLAGS)
 
 clean:
 	rm -f $(OUT)
