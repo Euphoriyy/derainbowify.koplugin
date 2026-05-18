@@ -24,7 +24,7 @@ static inline bool is_pixel_colored(uint8_t r, uint8_t g, uint8_t b, int toleran
 
 static bool is_block_colored_scalar(const uint8_t *data, int stride, int x_start, int y_start,
                                     int block_width, int block_height, int img_width,
-                                    int img_height, int tolerance)
+                                    int img_height, int bpp, int tolerance)
 {
     for (int y = y_start; y < y_start + block_height && y < img_height; y++)
     {
@@ -32,10 +32,7 @@ static bool is_block_colored_scalar(const uint8_t *data, int stride, int x_start
 
         for (int x = x_start; x < x_start + block_width && x < img_width; x++)
         {
-            /*
-             * 4 bytes per pixel
-             */
-            const uint8_t *px = row + (x * 4);
+            const uint8_t *px = row + (x * bpp);
 
             /*
              * RGBA ordering
@@ -143,6 +140,12 @@ EXPORT bool is_page_colored(uint8_t *data, int width, int height, int stride, in
 {
     const int BLOCK_WIDTH = 8;
     const int BLOCK_HEIGHT = 16;
+    const int bpp = stride / width; // 1 for BB8, 4 for BBRGB32
+    
+    if (bpp == 1)
+    {
+        return false;
+    }
 
     for (int y = 0; y < height; y += BLOCK_HEIGHT)
     {
@@ -153,7 +156,7 @@ EXPORT bool is_page_colored(uint8_t *data, int width, int height, int stride, in
                                       tolerance))
 #else
             if (is_block_colored_scalar(data, stride, x, y, BLOCK_WIDTH, BLOCK_HEIGHT, width,
-                                        height, tolerance))
+                                        height, bpp, tolerance))
 #endif
                 return true;
         }

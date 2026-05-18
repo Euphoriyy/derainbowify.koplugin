@@ -175,14 +175,19 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
     }
 
     int total = width * height;
+    int bpp = stride / width; // 1 for BB8, 4 for BBRGB32
 
     /* RGB -> grayscale, load into FFT input with (-1)^(x+y) centering */
     for (int y = 0; y < height; y++)
     {
         for (int x = 0; x < width; x++)
         {
-            unsigned char *px = &fb_data[y * stride + x * 4];
-            float gray = 0.299f * px[0] + 0.587f * px[1] + 0.114f * px[2];
+            unsigned char *px = &fb_data[y * stride + x * bpp];
+            float gray;
+            if (bpp == 1)
+                gray = px[0];
+            else
+                gray = 0.299f * px[0] + 0.587f * px[1] + 0.114f * px[2];
 
             int idx = y * width + x;
             g_fft_input[idx].r = ((x + y) & 1) ? -gray : gray;
@@ -216,10 +221,15 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
             if (pixel > 255)
                 pixel = 255;
 
-            unsigned char *px = &fb_data[y * stride + x * 4];
-            px[0] = pixel;
-            px[1] = pixel;
-            px[2] = pixel;
+            unsigned char *px = &fb_data[y * stride + x * bpp];
+            if (bpp == 1)
+                px[0] = pixel;
+            else
+            {
+                px[0] = pixel;
+                px[1] = pixel;
+                px[2] = pixel;
+            }
         }
     }
 }

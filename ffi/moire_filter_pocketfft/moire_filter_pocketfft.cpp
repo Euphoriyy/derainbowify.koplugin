@@ -105,15 +105,20 @@ extern "C"
             return;
         }
 
+        const int bpp = stride / width; // 1 for BB8, 4 for BBRGB32
+
         // Load grayscale + (-1)^(x+y) centering so DC lands at (W/2, H/2)
         for (int y = 0; y < height; y++)
         {
             const unsigned char *row = fb_data + y * stride;
             for (int x = 0; x < width; x++)
             {
-                const unsigned char *px = row + x * 4;
-                int gray = (77 * px[0] + 150 * px[1] + 29 * px[2]) >> 8;
-                float val = (float)gray;
+                const unsigned char *px = row + x * bpp;
+                float val;
+                if (bpp == 1)
+                    val = (float)px[0];
+                else
+                    val = (float)((77 * px[0] + 150 * px[1] + 29 * px[2]) >> 8);
                 if ((x + y) & 1)
                     val = -val;
                 g_buf[y * width + x] = cpx(val, 0.f);
@@ -157,8 +162,11 @@ extern "C"
                 if (p > 255)
                     p = 255;
 
-                unsigned char *px = row + x * 4;
-                px[0] = px[1] = px[2] = (unsigned char)p;
+                unsigned char *px = row + x * bpp;
+                if (bpp == 1)
+                    px[0] = (unsigned char)p;
+                else
+                    px[0] = px[1] = px[2] = (unsigned char)p;
             }
         }
     }
