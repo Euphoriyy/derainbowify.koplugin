@@ -179,7 +179,6 @@ end
 
 local function apply_derainbow_to_tile(tile)
     if not tile or tile.derainbow_checked then return end
-
     tile.derainbow_checked = true
 
     local ptr = ffi.cast("uint8_t*", tile.bb.data)
@@ -239,6 +238,19 @@ function Document:hintPage(pageno, zoom, rotation, gamma)
 
     local tile = self:renderPage(pageno, nil, zoom, rotation, gamma, true)
     apply_derainbow_to_tile(tile)
+end
+
+-- Apply it for pre-rendered optimized pages (dewatermark/straightened)
+local original_KoptInterface_renderOptimizedPage = KoptInterface.renderOptimizedPage
+function KoptInterface:renderOptimizedPage(doc, pageno, rect, zoom, rotation, gamma, hinting)
+    local tile = original_KoptInterface_renderOptimizedPage(self, doc, pageno, rect, zoom, rotation, gamma, hinting)
+
+    -- When hinting is disabled, tiles are already filtered in renderPage()
+    if doc.configurable.derainbow == 1 and hinting then
+        apply_derainbow_to_tile(tile)
+    end
+
+    return tile
 end
 
 -----------------------------------------------------
