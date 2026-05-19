@@ -23,7 +23,7 @@ static float *g_buf = NULL;
 static float *g_transpose = NULL;
 static float *g_work = NULL;
 
-// Precomputed spectral mask
+// Precomputed spectral mask (stored in transposed layout: [x * height + y])
 static uint8_t *g_mask = NULL;
 
 static int g_width = 0;
@@ -78,7 +78,9 @@ static int next_pffft_len(int n)
     return p;
 }
 
-// Precompute spectral mask
+// Precompute spectral mask in transposed layout [x * height + y]
+// so it can be applied directly while g_transpose is still transposed,
+// avoiding two extra transpose_complex calls per frame.
 static void build_mask(int width, int height)
 {
     if (g_mask)
@@ -104,23 +106,17 @@ static void build_mask(int width, int height)
             float fx = (float)(x - cx) / (float)width;
             float mag2 = fx * fx + fy * fy;
 
-            if (mag2 < freq_thresh_sq)
+            uint8_t val = 0;
+            if (mag2 >= freq_thresh_sq)
             {
-                g_mask[y * width + x] = 0;
-                continue;
+                float ax = fabsf(fx);
+                float ay = fabsf(fy);
+                float ratio = (ax > ay) ? ay / (ax + 1e-12f) : ax / (ay + 1e-12f);
+                val = (ratio > 0.85f);
             }
 
-            float ax = fabsf(fx);
-            float ay = fabsf(fy);
-            float ratio;
-
-            if (ax > ay)
-                ratio = ay / (ax + 1e-12f);
-            else
-                ratio = ax / (ay + 1e-12f);
-
-            // Near diagonal
-            g_mask[y * width + x] = (ratio > 0.85f);
+            // Store in transposed layout
+            g_mask[x * height + y] = val;
         }
     }
 }
@@ -196,7 +192,7 @@ static void transpose_complex(float *src, float *dst, int width, int height)
     }
 }
 
-// Fast spectral filter
+// Fast spectral filter - operates directly on transposed buffer using transposed mask
 static void filter_spectrum_angle(int width, int height, float strength)
 {
     const float base_atten = 0.10f;
@@ -206,8 +202,8 @@ static void filter_spectrum_angle(int width, int height, float strength)
     {
         if (g_mask[i])
         {
-            g_buf[i * 2] *= atten;
-            g_buf[i * 2 + 1] *= atten;
+            g_transpose[i * 2] *= atten;
+            g_transpose[i * 2 + 1] *= atten;
         }
     }
 }
@@ -276,14 +272,10 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
         pffft_transform_ordered(g_setup_h, r, r, g_work, PFFFT_FORWARD);
     }
 
-    transpose_complex(g_transpose, g_buf, H, W);
-
-    // Filter
+    // Filter in transposed layout — avoids two transpose_complex calls
     filter_spectrum_angle(W, H, strength);
 
     // Inverse FFT
-    transpose_complex(g_buf, g_transpose, W, H);
-
     for (int y = 0; y < W; y++)
     {
         float *r = &g_transpose[y * H * 2];
