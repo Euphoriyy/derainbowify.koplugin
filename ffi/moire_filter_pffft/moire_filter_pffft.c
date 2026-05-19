@@ -70,12 +70,18 @@ void cleanup_resources(void)
     g_initialized = 0;
 }
 
+// Returns the smallest integer >= n that pffft accepts:
+// a product of 2, 3, and 5, a multiple of 16, and >= 32.
 static int next_pffft_len(int n)
 {
-    int p = 32;
-    while (p < n)
-        p <<= 1;
-    return p;
+    if (n < 32) n = 32;
+    int best = n * 2;
+    for (int p2 = 1; p2 < n * 2; p2 *= 2)
+        for (int p3 = p2; p3 < n * 2; p3 *= 3)
+            for (int p5 = p3; p5 < n * 2; p5 *= 5)
+                if (p5 >= n && p5 < best && p5 % 16 == 0)
+                    best = p5;
+    return best;
 }
 
 // Precompute spectral mask in transposed layout [x * height + y]
