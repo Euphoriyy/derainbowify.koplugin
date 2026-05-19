@@ -57,8 +57,8 @@ end
 
 local PLUGIN_DIR = DataStorage:getDataDir() .. "/plugins/derainbowify.koplugin"
 
-local color_detect_ok, color_detect = pcall(ffi.load, PLUGIN_DIR .. string.format("/color_detect-%s.so", platform))
-local moire_ok, moire = pcall(ffi.load, PLUGIN_DIR .. string.format("/moire_filter-%s.so", platform))
+local color_detect_ok, color_detect = pcall(ffi.load, PLUGIN_DIR .. string.format("/libs/color_detect-%s.so", platform))
+local moire_ok, moire = pcall(ffi.load, PLUGIN_DIR .. string.format("/libs/moire_filter-%s.so", platform))
 
 if not color_detect_ok then
     logger.warn(string.format("failed to load color_detect-%s.so", platform))
