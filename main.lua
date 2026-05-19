@@ -92,17 +92,41 @@ int init_moire_resources();
 void cleanup_moire_resources();
 ]]
 
+local moire_initialized = false
+
 function Derainbowify:init()
-    pcall(function()
+    if moire_initialized or not self.ui.paging then
+        return
+    end
+
+    local ok, err = pcall(function()
         moire.init_moire_resources()
     end)
+
+    if ok then
+        logger.info("Derainbowify: Initialized moiré resources")
+        moire_initialized = true
+    else
+        logger.warn("Derainbowify: Failed to initialize moiré resources")
+        logger.info(err)
+    end
 end
 
 local original_UIManager_quit = UIManager.quit
 function UIManager:quit(...)
-    pcall(function()
-        moire.cleanup_moire_resources()
-    end)
+    if moire_initialized then
+        local ok, err = pcall(function()
+            moire.cleanup_moire_resources()
+        end)
+
+        if ok then
+            logger.info("Derainbowify: Cleaned up moiré resources")
+            moire_initialized = false
+        else
+            logger.warn("Derainbowify: Failed to clean up moiré resources")
+            logger.info(err)
+        end
+    end
 
     return original_UIManager_quit(self, ...)
 end
