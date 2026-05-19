@@ -74,7 +74,8 @@ void cleanup_resources(void)
 // a product of 2, 3, and 5, a multiple of 16, and >= 32.
 static int next_pffft_len(int n)
 {
-    if (n < 32) n = 32;
+    if (n < 32)
+        n = 32;
     int best = n * 2;
     for (int p2 = 1; p2 < n * 2; p2 *= 2)
         for (int p3 = p2; p3 < n * 2; p3 *= 3)
@@ -237,7 +238,15 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
     const int H = g_height;
     const int total = W * H;
 
-    memset(g_buf, 0, sizeof(float) * total * 2);
+    // Zero padding columns on the right of each image row
+    for (int y = 0; y < height; y++)
+    {
+        float *row = &g_buf[y * W * 2];
+        memset(&row[width * 2], 0, (W - width) * sizeof(float) * 2);
+    }
+
+    // Zero all padding rows at the bottom
+    memset(&g_buf[height * W * 2], 0, (H - height) * W * sizeof(float) * 2);
 
     // Load grayscale + FFT centering
     for (int y = 0; y < height; y++)
