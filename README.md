@@ -7,7 +7,7 @@
 [![C++](https://img.shields.io/badge/C%2B%2B-00599C?style=flat&logo=c%2B%2B&logoColor=white)](#)
 [![GitHub Downloads](https://img.shields.io/github/downloads/Euphoriyy/derainbowify.koplugin/total.svg)](https://github.com/Euphoriyy/derainbowify.koplugin/releases)
 
-<img src="img/option.png" style="width:100%; height:auto;">
+<img src="img/derainbowify.png" style="width:100%; height:auto;">
 
 This plugin adds an option to remove the rainbow artifacts produced on Kaleido 3 color e-ink screens. It is useful for black and white manga (and other comics) that use image patterns which produce these artifacts.
 
@@ -49,6 +49,7 @@ Please ensure you have the necessary toolchains added to your path.
 - Inspired by the idea from [@Blendman974](https://github.com/Blendman974) to use fast fourier transforms to solve this issue.
 - This plugin uses the following libraries for fast fourier transform implementations: [kissfft](https://github.com/mborgerding/kissfft), [pffft](https://bitbucket.org/jpommier/pffft), and [pocketfft](https://github.com/hayguen/pocketfft).
 - The packaging system in use is based on work from [ComicReader](https://github.com/KORComic/comicreader.koplugin) by [@OGKevin](https://github.com/OGKevin).
+- The image with the rainbow artifacts shown here is from the blog, [*Midnight Reading* by Renkon](https://renkotsuban.com/index.html), and [this post by them](https://renkotsuban.com/posts/2025-10-05-Ruminating-on-eReaders-part-2-The-Kobo-Libra-Colour.html#the-screen).
 
 ## Support
 If you want to support me, you can star this repository or buy me a coffee. :)
