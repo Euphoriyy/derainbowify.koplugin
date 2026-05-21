@@ -234,7 +234,7 @@ local original_KoptInterface_renderPage = KoptInterface.renderPage
 function KoptInterface:renderPage(doc, ...)
     local tile = original_KoptInterface_renderPage(self, doc, ...)
 
-    if doc.configurable.derainbow == 1 then
+    if tile and doc.configurable.derainbow == 1 then
         apply_derainbow_to_tile(tile)
 
         if tile.derainbow_bb then
@@ -261,16 +261,18 @@ function Document:hintPage(pageno, zoom, rotation, gamma)
     logger.dbg("hinting page", pageno)
 
     local tile = self:renderPage(pageno, nil, zoom, rotation, gamma, true)
-    apply_derainbow_to_tile(tile)
+    if tile then
+        apply_derainbow_to_tile(tile)
+    end
 end
 
 -- Apply it for pre-rendered optimized pages (dewatermark/straightened)
 local original_KoptInterface_renderOptimizedPage = KoptInterface.renderOptimizedPage
-function KoptInterface:renderOptimizedPage(doc, pageno, rect, zoom, rotation, gamma, hinting)
-    local tile = original_KoptInterface_renderOptimizedPage(self, doc, pageno, rect, zoom, rotation, gamma, hinting)
+function KoptInterface:renderOptimizedPage(doc, pageno, rect, zoom, rotation, hinting)
+    local tile = original_KoptInterface_renderOptimizedPage(self, doc, pageno, rect, zoom, rotation, hinting)
 
     -- When hinting is disabled, tiles are already filtered in renderPage()
-    if doc.configurable.derainbow == 1 and hinting then
+    if tile and doc.configurable.derainbow == 1 and hinting then
         apply_derainbow_to_tile(tile)
     end
 
