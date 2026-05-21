@@ -1,4 +1,6 @@
 local Blitbuffer = require("ffi/blitbuffer")
+local CreDocument = require("document/credocument")
+local CreOptions = require("ui/data/creoptions")
 local DataStorage = require("datastorage")
 local Device = require("device")
 local Dispatcher = require("dispatcher")
@@ -95,7 +97,7 @@ void cleanup_moire_resources();
 local moire_initialized = false
 
 function Derainbowify:init()
-    if moire_initialized or not self.ui.paging then
+    if moire_initialized then
         return
     end
 
@@ -149,6 +151,32 @@ for i, section in ipairs(KoptOptions) do
     end
 end
 
+for i, section in ipairs(CreOptions) do
+    if section.icon == "appbar.contrast" then
+        table.insert(section.options, {
+            name = "derainbow",
+            name_text = _("Derainbow"),
+            toggle = { _("off"), _("on") },
+            values = { 0, 1 },
+            default_value = 0,
+            event = "ToggleDerainbow",
+            show_func = function() return Screen.eink end,
+            name_text_hold_callback = optionsutil.showValues,
+            help_text = _([[Remove rainbow artifacts from the color e-ink display.]]),
+        })
+        break
+    end
+end
+
+-- Reflowable documents need to be redrawn
+function Derainbowify:onToggleDerainbow()
+    if self.ui.document.buffer then
+        self.ui.document.buffer:free()
+        self.ui.document.buffer = nil
+    end
+    self.ui.rolling:onRedrawCurrentView()
+end
+
 -- Load new option
 local original_ReaderConfig_init = ReaderConfig.init
 function ReaderConfig:init()
@@ -156,31 +184,47 @@ function ReaderConfig:init()
 
     if self.document.koptinterface ~= nil then
         self.options = KoptOptions
-        self.configurable:loadDefaults(self.options)
+    else
+        self.options = CreOptions
     end
+    self.configurable:loadDefaults(self.options)
 end
 
--- Register dispatcher action
+-- Register dispatcher actions
 Dispatcher:registerAction("kopt_derainbow", {
     category = "configurable",
     paging = true,
 })
 
+Dispatcher:registerAction("copt_derainbow", {
+    category = "string",
+    event = "SetDerainbow",
+    title=_("Derainbow"),
+    args = { 0, 1 },
+    toggle = { _("off"), _("on") },
+    rolling = true,
+})
+
+function Derainbowify:onSetDerainbow(value)
+    if self.ui.document.configurable.derainbow == value then return end
+    self.ui.document.configurable.derainbow = value
+    self:onToggleDerainbow()
+end
+
 -----------------------------------------------------
 
-local function remove_moire_from_tile(tile)
-    local filtered_bb = Blitbuffer.new(
-        tile.bb.w,
-        tile.bb.h,
-        tile.bb:getType()
-    )
-    filtered_bb:blitFrom(
-        tile.bb,
-        0, 0,
-        0, 0,
-        tile.bb.w,
-        tile.bb.h
-    )
+local function remove_moire_from_bb(bb, copy)
+    local filtered_bb = bb
+    if copy then
+        filtered_bb = Blitbuffer.new(bb.w, bb.h, bb:getType())
+        filtered_bb:blitFrom(
+            bb,
+            0, 0,
+            0, 0,
+            bb.w,
+            bb.h
+        )
+    end
 
     local ptr = ffi.cast("uint8_t*", filtered_bb.data)
 
@@ -215,7 +259,7 @@ local function apply_derainbow_to_tile(tile)
     )
 
     if not is_colored then
-        tile.derainbow_bb = remove_moire_from_tile(tile)
+        tile.derainbow_bb = remove_moire_from_bb(tile.bb, true)
         tile.size = tile.size + tonumber(tile.bb.stride) * tile.bb.h
 
         -- Set handler for freeing derainbow blitbuffer
@@ -277,6 +321,25 @@ function KoptInterface:renderOptimizedPage(doc, pageno, rect, zoom, rotation, hi
     end
 
     return tile
+end
+
+function CreDocument:drawCurrentView(target, x, y, rect, pos)
+    if self.buffer and (self.buffer.w ~= rect.w or self.buffer.h ~= rect.h) then
+        self.buffer:free()
+        self.buffer = nil
+    end
+    if not self.buffer then
+        self.buffer = Blitbuffer.new(rect.w, rect.h, self.render_color and Blitbuffer.TYPE_BBRGB32 or nil)
+    end
+
+    self._drawn_images_count, self._drawn_images_surface_ratio =
+        self._document:drawCurrentPage(self.buffer, self.render_color, Screen.night_mode and self._nightmode_images,
+            self._smooth_scaling, Screen.sw_dithering)
+
+    if self.configurable.derainbow == 1 then
+        remove_moire_from_bb(self.buffer, false)
+    end
+    target:blitFrom(self.buffer, x, y, 0, 0, rect.w, rect.h)
 end
 
 -----------------------------------------------------
