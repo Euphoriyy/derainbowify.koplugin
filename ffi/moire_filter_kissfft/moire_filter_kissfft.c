@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,10 @@ static kiss_fftnd_cfg g_ifft_cfg = NULL;
 
 static kiss_fft_cpx *g_fft_input = NULL;
 static kiss_fft_cpx *g_fft_output = NULL;
+
+// U and V chrominance channels preserved across FFT for color images
+static float *g_u_channel = NULL;
+static float *g_v_channel = NULL;
 
 static int g_width = 0;
 static int g_height = 0;
@@ -58,6 +63,16 @@ void cleanup_resources(void)
         free(g_fft_output);
         g_fft_output = NULL;
     }
+    if (g_u_channel)
+    {
+        free(g_u_channel);
+        g_u_channel = NULL;
+    }
+    if (g_v_channel)
+    {
+        free(g_v_channel);
+        g_v_channel = NULL;
+    }
     g_width = 0;
     g_height = 0;
     g_initialized = 0;
@@ -81,7 +96,12 @@ int init_resources(int width, int height)
     int total = width * height;
     g_fft_input = malloc(sizeof(kiss_fft_cpx) * total);
     g_fft_output = malloc(sizeof(kiss_fft_cpx) * total);
-    if (!g_fft_input || !g_fft_output)
+
+    // Chrominance buffers sized to the actual image pixels (not padded)
+    g_u_channel = malloc(sizeof(float) * total);
+    g_v_channel = malloc(sizeof(float) * total);
+
+    if (!g_fft_input || !g_fft_output || !g_u_channel || !g_v_channel)
         goto fail;
 
     g_width = width;
@@ -161,7 +181,8 @@ static void filter_spectrum_angle(kiss_fft_cpx *spectrum, int width, int height,
  * ============================================================
  */
 
-EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stride, float strength)
+EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stride, bool is_colored,
+                         float strength)
 {
     if (!fb_data)
         return;
@@ -177,58 +198,122 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
     int total = width * height;
     int bpp = stride / width; // 1 for BB8, 4 for BBRGB32
 
-    /* RGB -> grayscale, load into FFT input with (-1)^(x+y) centering */
-    for (int y = 0; y < height; y++)
+    if (is_colored && bpp == 4)
     {
-        for (int x = 0; x < width; x++)
+        // Color path: RGB -> YUV, filter only Y (luminance), reconstruct RGB.
+        // U and V are stored in side buffers and recombined after the IFFT.
+        for (int y = 0; y < height; y++)
         {
-            unsigned char *px = &fb_data[y * stride + x * bpp];
-            float gray;
-            if (bpp == 1)
-                gray = px[0];
-            else
-                gray = 0.299f * px[0] + 0.587f * px[1] + 0.114f * px[2];
+            for (int x = 0; x < width; x++)
+            {
+                unsigned char *px = &fb_data[y * stride + x * 4];
+                float r = (float)px[0];
+                float g = (float)px[1];
+                float b = (float)px[2];
 
-            int idx = y * width + x;
-            g_fft_input[idx].r = ((x + y) & 1) ? -gray : gray;
-            g_fft_input[idx].i = 0.0f;
+                float Y = 0.299f * r + 0.587f * g + 0.114f * b;
+                float U = -0.14713f * r - 0.28886f * g + 0.436f * b;
+                float V = 0.615f * r - 0.51499f * g - 0.10001f * b;
+
+                int idx = y * width + x;
+                g_u_channel[idx] = U;
+                g_v_channel[idx] = V;
+
+                g_fft_input[idx].r = ((x + y) & 1) ? -Y : Y;
+                g_fft_input[idx].i = 0.0f;
+            }
+        }
+
+        kiss_fftnd(g_fft_cfg, g_fft_input, g_fft_output);
+
+        filter_spectrum_angle(g_fft_output, width, height, strength);
+
+        kiss_fftnd(g_ifft_cfg, g_fft_output, g_fft_input);
+
+        // Normalize, undo centering, recombine YUV -> RGB
+        float norm = 1.0f / (float)total;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int idx = y * width + x;
+
+                float Y = g_fft_input[idx].r * norm;
+                if ((x + y) & 1)
+                    Y = -Y;
+                if (isnan(Y) || isinf(Y))
+                    Y = 0.0f;
+
+                float U = g_u_channel[idx];
+                float V = g_v_channel[idx];
+
+                // YUV -> RGB
+                float rf = Y + 1.13983f * V;
+                float gf = Y - 0.39465f * U - 0.58060f * V;
+                float bf = Y + 2.03211f * U;
+
+                unsigned char *px = &fb_data[y * stride + x * 4];
+                px[0] = (unsigned char)(rf < 0.0f ? 0 : rf > 255.0f ? 255 : (int)rf);
+                px[1] = (unsigned char)(gf < 0.0f ? 0 : gf > 255.0f ? 255 : (int)gf);
+                px[2] = (unsigned char)(bf < 0.0f ? 0 : bf > 255.0f ? 255 : (int)bf);
+            }
         }
     }
-
-    kiss_fftnd(g_fft_cfg, g_fft_input, g_fft_output);
-
-    filter_spectrum_angle(g_fft_output, width, height, strength);
-
-    kiss_fftnd(g_ifft_cfg, g_fft_output, g_fft_input);
-
-    float norm = 1.0f / (float)total;
-
-    for (int y = 0; y < height; y++)
+    else
     {
-        for (int x = 0; x < width; x++)
+        // RGB -> grayscale, load into FFT input with (-1)^(x+y) centering
+        for (int y = 0; y < height; y++)
         {
-            int idx = y * width + x;
-
-            float value = g_fft_input[idx].r * norm;
-            if ((x + y) & 1)
-                value = -value;
-            if (isnan(value) || isinf(value))
-                value = 0.0f;
-
-            int pixel = (int)value;
-            if (pixel < 0)
-                pixel = 0;
-            if (pixel > 255)
-                pixel = 255;
-
-            unsigned char *px = &fb_data[y * stride + x * bpp];
-            if (bpp == 1)
-                px[0] = pixel;
-            else
+            for (int x = 0; x < width; x++)
             {
-                px[0] = pixel;
-                px[1] = pixel;
-                px[2] = pixel;
+                unsigned char *px = &fb_data[y * stride + x * bpp];
+                float gray;
+                if (bpp == 1)
+                    gray = px[0];
+                else
+                    gray = 0.299f * px[0] + 0.587f * px[1] + 0.114f * px[2];
+
+                int idx = y * width + x;
+                g_fft_input[idx].r = ((x + y) & 1) ? -gray : gray;
+                g_fft_input[idx].i = 0.0f;
+            }
+        }
+
+        kiss_fftnd(g_fft_cfg, g_fft_input, g_fft_output);
+
+        filter_spectrum_angle(g_fft_output, width, height, strength);
+
+        kiss_fftnd(g_ifft_cfg, g_fft_output, g_fft_input);
+
+        float norm = 1.0f / (float)total;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int idx = y * width + x;
+
+                float value = g_fft_input[idx].r * norm;
+                if ((x + y) & 1)
+                    value = -value;
+                if (isnan(value) || isinf(value))
+                    value = 0.0f;
+
+                int pixel = (int)value;
+                if (pixel < 0)
+                    pixel = 0;
+                if (pixel > 255)
+                    pixel = 255;
+
+                unsigned char *px = &fb_data[y * stride + x * bpp];
+                if (bpp == 1)
+                    px[0] = pixel;
+                else
+                {
+                    px[0] = pixel;
+                    px[1] = pixel;
+                    px[2] = pixel;
+                }
             }
         }
     }

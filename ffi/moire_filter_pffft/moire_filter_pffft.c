@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,10 @@ static float *g_work = NULL;
 
 // Precomputed spectral mask (stored in transposed layout: [x * height + y])
 static uint8_t *g_mask = NULL;
+
+// U and V chrominance channels preserved across FFT for color images
+static float *g_u_channel = NULL;
+static float *g_v_channel = NULL;
 
 static int g_width = 0;
 static int g_height = 0;
@@ -63,6 +68,16 @@ void cleanup_resources(void)
     {
         free(g_mask);
         g_mask = NULL;
+    }
+    if (g_u_channel)
+    {
+        free(g_u_channel);
+        g_u_channel = NULL;
+    }
+    if (g_v_channel)
+    {
+        free(g_v_channel);
+        g_v_channel = NULL;
     }
 
     g_width = 0;
@@ -153,7 +168,11 @@ int init_resources(int width, int height)
     g_transpose = pffft_aligned_malloc(sizeof(float) * total * 2);
     g_work = pffft_aligned_malloc(sizeof(float) * maxdim * 2);
 
-    if (!g_buf || !g_transpose || !g_work)
+    // Chrominance buffers sized to the actual image pixels (not padded)
+    g_u_channel = malloc(sizeof(float) * width * height);
+    g_v_channel = malloc(sizeof(float) * width * height);
+
+    if (!g_buf || !g_transpose || !g_work || !g_u_channel || !g_v_channel)
     {
         goto fail;
     }
@@ -215,63 +234,10 @@ static void filter_spectrum_angle(int width, int height, float strength)
     }
 }
 
-// Main function
-EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stride, float strength)
+// Run the FFT pipeline on whatever is currently loaded into g_buf.
+// On return, the filtered luminance is back in g_buf (not normalised).
+static void run_fft_filter(int W, int H, float strength)
 {
-    if (!fb_data)
-        return;
-
-    if (strength < 0.0f)
-        strength = 0.0f;
-
-    if (strength > 1.0f)
-        strength = 1.0f;
-
-    if (init_resources(width, height) != 0)
-    {
-        fprintf(stderr, "pffft init failed\n");
-        return;
-    }
-
-    const int bpp = stride / width; // 1 for BB8, 4 for BBRGB32
-    const int W = g_width;
-    const int H = g_height;
-    const int total = W * H;
-
-    // Zero padding columns on the right of each image row
-    for (int y = 0; y < height; y++)
-    {
-        float *row = &g_buf[y * W * 2];
-        memset(&row[width * 2], 0, (W - width) * sizeof(float) * 2);
-    }
-
-    // Zero all padding rows at the bottom
-    memset(&g_buf[height * W * 2], 0, (H - height) * W * sizeof(float) * 2);
-
-    // Load grayscale + FFT centering
-    for (int y = 0; y < height; y++)
-    {
-        unsigned char *row = fb_data + y * stride;
-        for (int x = 0; x < width; x++)
-        {
-            unsigned char *px = row + x * bpp;
-
-            // Integer grayscale approximation
-            float value;
-            if (bpp == 1)
-                value = (float)px[0];
-            else
-                value = (float)((77 * px[0] + 150 * px[1] + 29 * px[2]) >> 8);
-
-            // FFT centering
-            if ((x + y) & 1)
-                value = -value;
-            int base = (y * W + x) * 2;
-            g_buf[base] = value;
-            g_buf[base + 1] = 0.0f;
-        }
-    }
-
     // Forward FFT
     for (int y = 0; y < H; y++)
     {
@@ -304,40 +270,164 @@ EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stri
         float *r = &g_buf[y * W * 2];
         pffft_transform_ordered(g_setup_w, r, r, g_work, PFFFT_BACKWARD);
     }
+}
 
-    // Normalize
-    const float norm = 1.0f / (float)total;
+// Main function
+EXPORT void remove_moire(unsigned char *fb_data, int width, int height, int stride, bool is_colored,
+                         float strength)
+{
+    if (!fb_data)
+        return;
+
+    if (strength < 0.0f)
+        strength = 0.0f;
+
+    if (strength > 1.0f)
+        strength = 1.0f;
+
+    if (init_resources(width, height) != 0)
+    {
+        fprintf(stderr, "pffft init failed\n");
+        return;
+    }
+
+    const int bpp = stride / width; // 1 for BB8, 4 for BBRGB32
+    const int W = g_width;
+    const int H = g_height;
+    const int total = W * H;
+
+    // Zero padding columns on the right of each image row
     for (int y = 0; y < height; y++)
     {
-        unsigned char *row = fb_data + y * stride;
-        for (int x = 0; x < width; x++)
+        float *row = &g_buf[y * W * 2];
+        memset(&row[width * 2], 0, (W - width) * sizeof(float) * 2);
+    }
+
+    // Zero all padding rows at the bottom
+    memset(&g_buf[height * W * 2], 0, (H - height) * W * sizeof(float) * 2);
+
+    if (is_colored && bpp == 4)
+    {
+        // Color path: RGB -> YUV, filter only Y (luminance), reconstruct RGB.
+        // U and V are stored in side buffers and recombined after the IFFT.
+        for (int y = 0; y < height; y++)
         {
-            float value = g_buf[(y * W + x) * 2] * norm;
-
-            if ((x + y) & 1)
-                value = -value;
-
-            if (isnan(value) || isinf(value))
+            unsigned char *row = fb_data + y * stride;
+            for (int x = 0; x < width; x++)
             {
-                value = 0.0f;
+                unsigned char *px = row + x * 4;
+                float r = (float)px[0];
+                float g = (float)px[1];
+                float b = (float)px[2];
+
+                float Y = 0.299f * r + 0.587f * g + 0.114f * b;
+                float U = -0.14713f * r - 0.28886f * g + 0.436f * b;
+                float V = 0.615f * r - 0.51499f * g - 0.10001f * b;
+
+                int idx = y * width + x;
+                g_u_channel[idx] = U;
+                g_v_channel[idx] = V;
+
+                // FFT centering
+                int base = (y * W + x) * 2;
+                g_buf[base] = ((x + y) & 1) ? -Y : Y;
+                g_buf[base + 1] = 0.0f;
             }
+        }
 
-            int pixel = (int)value;
+        run_fft_filter(W, H, strength);
 
-            if (pixel < 0)
-                pixel = 0;
-            if (pixel > 255)
-                pixel = 255;
-
-            unsigned char *px = row + x * bpp;
-
-            if (bpp == 1)
-                px[0] = pixel;
-            else
+        // Normalize, undo centering, recombine YUV -> RGB
+        const float norm = 1.0f / (float)total;
+        for (int y = 0; y < height; y++)
+        {
+            unsigned char *row = fb_data + y * stride;
+            for (int x = 0; x < width; x++)
             {
-                px[0] = pixel;
-                px[1] = pixel;
-                px[2] = pixel;
+                float Y = g_buf[(y * W + x) * 2] * norm;
+                if ((x + y) & 1)
+                    Y = -Y;
+                if (isnan(Y) || isinf(Y))
+                    Y = 0.0f;
+
+                int idx = y * width + x;
+                float U = g_u_channel[idx];
+                float V = g_v_channel[idx];
+
+                // YUV -> RGB
+                float rf = Y + 1.13983f * V;
+                float gf = Y - 0.39465f * U - 0.58060f * V;
+                float bf = Y + 2.03211f * U;
+
+                unsigned char *px = row + x * 4;
+                px[0] = (unsigned char)(rf < 0.0f ? 0 : rf > 255.0f ? 255 : (int)rf);
+                px[1] = (unsigned char)(gf < 0.0f ? 0 : gf > 255.0f ? 255 : (int)gf);
+                px[2] = (unsigned char)(bf < 0.0f ? 0 : bf > 255.0f ? 255 : (int)bf);
+            }
+        }
+    }
+    else
+    {
+        // Load grayscale + FFT centering
+        for (int y = 0; y < height; y++)
+        {
+            unsigned char *row = fb_data + y * stride;
+            for (int x = 0; x < width; x++)
+            {
+                unsigned char *px = row + x * bpp;
+
+                // Integer grayscale approximation
+                float value;
+                if (bpp == 1)
+                    value = (float)px[0];
+                else
+                    value = (float)((77 * px[0] + 150 * px[1] + 29 * px[2]) >> 8);
+
+                // FFT centering
+                if ((x + y) & 1)
+                    value = -value;
+                int base = (y * W + x) * 2;
+                g_buf[base] = value;
+                g_buf[base + 1] = 0.0f;
+            }
+        }
+
+        run_fft_filter(W, H, strength);
+
+        // Normalize
+        const float norm = 1.0f / (float)total;
+        for (int y = 0; y < height; y++)
+        {
+            unsigned char *row = fb_data + y * stride;
+            for (int x = 0; x < width; x++)
+            {
+                float value = g_buf[(y * W + x) * 2] * norm;
+
+                if ((x + y) & 1)
+                    value = -value;
+
+                if (isnan(value) || isinf(value))
+                {
+                    value = 0.0f;
+                }
+
+                int pixel = (int)value;
+
+                if (pixel < 0)
+                    pixel = 0;
+                if (pixel > 255)
+                    pixel = 255;
+
+                unsigned char *px = row + x * bpp;
+
+                if (bpp == 1)
+                    px[0] = pixel;
+                else
+                {
+                    px[0] = pixel;
+                    px[1] = pixel;
+                    px[2] = pixel;
+                }
             }
         }
     }

@@ -87,6 +87,7 @@ void remove_moire(unsigned char *fb_data,
                   int width,
                   int height,
                   int stride,
+                  bool is_colored,
                   float strength);
 
 int init_moire_resources();
@@ -199,7 +200,7 @@ Dispatcher:registerAction("kopt_derainbow", {
 Dispatcher:registerAction("copt_derainbow", {
     category = "string",
     event = "SetDerainbow",
-    title=_("Derainbow"),
+    title = _("Derainbow"),
     args = { 0, 1 },
     toggle = { _("off"), _("on") },
     rolling = true,
@@ -228,6 +229,14 @@ local function remove_moire_from_bb(bb, copy)
 
     local ptr = ffi.cast("uint8_t*", filtered_bb.data)
 
+    local is_colored = color_detect.is_page_colored(
+        ptr,
+        filtered_bb.w,
+        filtered_bb.h,
+        filtered_bb.stride,
+        COLOR_TOLERANCE
+    )
+
     local t0 = os.clock()
 
     moire.remove_moire(
@@ -235,6 +244,7 @@ local function remove_moire_from_bb(bb, copy)
         filtered_bb.w,
         filtered_bb.h,
         filtered_bb.stride,
+        is_colored,
         FILTER_STRENGTH
     )
 
@@ -249,27 +259,16 @@ local function apply_derainbow_to_tile(tile)
     if not tile or tile.derainbow_checked then return end
     tile.derainbow_checked = true
 
-    local ptr = ffi.cast("uint8_t*", tile.bb.data)
-    local is_colored = color_detect.is_page_colored(
-        ptr,
-        tile.bb.w,
-        tile.bb.h,
-        tile.bb.stride,
-        COLOR_TOLERANCE
-    )
+    tile.derainbow_bb = remove_moire_from_bb(tile.bb, true)
+    tile.size = tile.size + tonumber(tile.bb.stride) * tile.bb.h
 
-    if not is_colored then
-        tile.derainbow_bb = remove_moire_from_bb(tile.bb, true)
-        tile.size = tile.size + tonumber(tile.bb.stride) * tile.bb.h
-
-        -- Set handler for freeing derainbow blitbuffer
-        local original_onFree = tile.onFree
-        tile.onFree = function(_self)
-            original_onFree(_self)
-            if _self.derainbow_bb then
-                logger.dbg("TileCacheItem: free derainbow blitbuffer", _self.derainbow_bb)
-                _self.derainbow_bb:free()
-            end
+    -- Set handler for freeing derainbow blitbuffer
+    local original_onFree = tile.onFree
+    tile.onFree = function(_self)
+        original_onFree(_self)
+        if _self.derainbow_bb then
+            logger.dbg("TileCacheItem: free derainbow blitbuffer", _self.derainbow_bb)
+            _self.derainbow_bb:free()
         end
     end
 end
