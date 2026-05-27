@@ -229,7 +229,9 @@ local function remove_moire_from_bb(bb, copy)
 
     local ptr = ffi.cast("uint8_t*", filtered_bb.data)
 
-    local is_colored = color_detect.is_page_colored(
+    -- Check if the buffer has RGB color, >= 24-bit
+    local bpp = filtered_bb.stride / filtered_bb.w
+    local is_colored = bpp >= 3 and color_detect.is_page_colored(
         ptr,
         filtered_bb.w,
         filtered_bb.h,
@@ -256,7 +258,9 @@ local function remove_moire_from_bb(bb, copy)
 end
 
 local function apply_derainbow_to_tile(tile)
-    if not tile or tile.derainbow_checked then return end
+    if not tile or tile.derainbow_checked then
+        return
+    end
     tile.derainbow_checked = true
 
     tile.derainbow_bb = remove_moire_from_bb(tile.bb, true)
