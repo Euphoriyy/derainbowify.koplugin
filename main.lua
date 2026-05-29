@@ -40,7 +40,7 @@ local function get_platform()
         return "amd64"
     elseif Device:isKobo() then
         return "kobo"
-    elseif Device:isPocketbook() then
+    elseif Device:isPocketBook() then
         return "pocketbook"
     elseif Device:isKindle() then
         if Device:isHardFP() then

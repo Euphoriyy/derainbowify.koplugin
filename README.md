@@ -28,7 +28,7 @@ Made for koreader/koreader#11877.
 5. You should see a new option called "Derainbow" on the contrast menu when opening a document.
 
 ## Compatibility
-By design, this plugin is designed for e-readers that use color e-ink such as the Kobo Libra Color, Kobo Clara Color, Kindle Colorsoft, and Pocketbook Inkpad Color 3.
+By design, this plugin is designed for e-readers that use color e-ink such as the Kobo Libra Color, Kobo Clara Color, Kindle Colorsoft, and PocketBook Inkpad Color 3.
 
 For now, only the Kobo Libra Color has been fully tested, but the other devices are supported.
 
