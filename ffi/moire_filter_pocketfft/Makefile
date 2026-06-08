@@ -21,21 +21,40 @@ ARM_FLAGS = \
 HARD_FLOAT_FLAG = -mfloat-abi=hard
 SOFT_FLOAT_FLAG = -mfloat-abi=softfp
 
+ANDROID_FLAGS = \
+    -static-libstdc++ \
+    -funwind-tables \
+    -fstack-protector \
+    -no-canonical-prefixes
+
+ANDROID_ARM32_FLAGS = \
+    -march=armv7-a \
+    -mfpu=vfpv3-d16 \
+    -mthumb
+
 ifneq ($(PLATFORM),amd64)
-    ifeq ($(findstring gnueabihf,$(CXX)),gnueabihf)
-        CXXFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(HARD_FLOAT_FLAG)
+    ifneq ($(filter android%,$(PLATFORM)),)
+        ifeq ($(findstring arm64,$(PLATFORM)),arm64)
+            CFLAGS = $(COMMON_FLAGS) $(ANDROID_FLAGS)
+        else
+            CFLAGS = $(COMMON_FLAGS) $(ANDROID_FLAGS) $(ANDROID_ARM32_FLAGS)
+        endif
     else
-        CXXFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(SOFT_FLOAT_FLAG)
+        ifeq ($(findstring gnueabihf,$(CC)),gnueabihf)
+            CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(HARD_FLOAT_FLAG)
+        else
+            CFLAGS = $(COMMON_FLAGS) $(ARM_FLAGS) $(SOFT_FLOAT_FLAG)
+        endif
     endif
 else
-    CXXFLAGS = $(COMMON_FLAGS)
+    CFLAGS = $(COMMON_FLAGS)
 endif
 
 LDFLAGS = \
     -Wl,--export-dynamic \
     -Wl,-rpath,'$$ORIGIN' \
     -lm \
-	-lpthread
+    -lpthread
 
 SRC = moire_filter_pocketfft.cpp
 

@@ -12,8 +12,11 @@ local Screen = Device.screen
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local ffi = require("ffi")
+local ffiutil = require("ffi/util")
+local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
 local optionsutil = require("ui/data/optionsutil")
+local util = require("util")
 local _ = require("gettext")
 
 -- The level of tolerance for detecting whether a page is colored
@@ -34,6 +37,8 @@ end
 
 -----------------------------------------------------
 
+local android = nil
+
 -- Load FFI libraries
 local function get_platform()
     if Device:isDesktop() or Device:isEmulator() then
@@ -47,6 +52,9 @@ local function get_platform()
             return "kindlehf"
         end
         return "kindle"
+    elseif Device:isAndroid() and util.stringStartsWith(jit.arch, "arm") then
+        android = require("android")
+        return "android-" .. jit.arch
     end
     return nil
 end
@@ -57,10 +65,63 @@ if not platform then
     return
 end
 
+local function fileEquals(source_path, target_path)
+    local src_attr = lfs.attributes(source_path)
+    local dst_attr = lfs.attributes(target_path)
+    if not src_attr or not dst_attr then
+        return false
+    end
+    if dst_attr.size ~= src_attr.size or dst_attr.modification ~= src_attr.modification then
+        return false
+    end
+
+    local src_hash = util.partialMD5(source_path)
+    local dst_hash = util.partialMD5(target_path)
+    if not src_hash or not dst_hash then
+        return false
+    end
+    return src_hash == dst_hash
+end
+
+local function stage_android_library(source_path)
+    if not android or not util.fileExists(source_path) then
+        return nil
+    end
+
+    local _, filename = util.splitFilePathName(source_path)
+    local target_dir = android.dir .. "/plugins/derainbowify.koplugin/libs"
+    local target_path = target_dir .. "/" .. filename
+
+    local ok, err = util.makePath(target_dir)
+    if not ok then
+        logger.warn("Derainbowify: Failed to create staging directory", err)
+        return nil
+    end
+
+    if not util.fileExists(target_path) or not fileEquals(source_path, target_path) then
+        local copy_err = ffiutil.copyFile(source_path, target_path)
+        if copy_err then
+            logger.warn("Derainbowify: Failed to stage Android library", copy_err)
+            return nil
+        end
+    end
+
+    return target_path
+end
+
 local PLUGIN_DIR = DataStorage:getDataDir() .. "/plugins/derainbowify.koplugin"
 
-local color_detect_ok, color_detect = pcall(ffi.load, PLUGIN_DIR .. string.format("/libs/color_detect-%s.so", platform))
-local moire_ok, moire = pcall(ffi.load, PLUGIN_DIR .. string.format("/libs/moire_filter-%s.so", platform))
+local color_detect_ok, color_detect, moire_ok, moire
+local color_detect_path = PLUGIN_DIR .. string.format("/libs/color_detect-%s.so", platform)
+local moire_filter_path = PLUGIN_DIR .. string.format("/libs/moire_filter-%s.so", platform)
+
+if android then
+    color_detect_ok, color_detect = pcall(ffi.load, stage_android_library(color_detect_path))
+    moire_ok, moire = pcall(ffi.load, stage_android_library(moire_filter_path))
+else
+    color_detect_ok, color_detect = pcall(ffi.load, color_detect_path)
+    moire_ok, moire = pcall(ffi.load, moire_filter_path)
+end
 
 if not color_detect_ok then
     logger.warn(string.format("failed to load color_detect-%s.so", platform))
