@@ -9,7 +9,7 @@
 
 <img src="img/derainbowify.png" style="width:100%; height:auto;">
 
-This plugin adds an option to remove the rainbow artifacts produced on Kaleido 3 color e-ink screens. It is primarily useful for black and white comics/manga that use image patterns which produce these artifacts.
+A plugin for [<img src="img/koreader.png" width="24" /> KOReader](https://koreader.rocks) that adds an option to remove the rainbow artifacts produced on Kaleido 3 color e-ink screens. It is primarily useful for black and white comics/manga that use image patterns which produce these artifacts.
 
 It uses fourier transforms on-the-fly to directly target the moiré patterns responsible for the rainbow effect.
 Compared to the method used for reducing the rainbow effect that is found in the official Kobo software, the method utilized by this plugin does *not* negatively affect the image by introducing blur, instead retaining sharpness.
