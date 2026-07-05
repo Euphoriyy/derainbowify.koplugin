@@ -39,6 +39,11 @@ end
 
 local android = nil
 
+-- Try to detect Kindle running hardfp firmware (from kindle/device.lua)
+local function isHardFP()
+    return util.pathExists("/lib/ld-linux-armhf.so.3")
+end
+
 -- Load FFI libraries
 local function get_platform()
     if Device:isDesktop() or Device:isEmulator() then
@@ -48,7 +53,7 @@ local function get_platform()
     elseif Device:isPocketBook() then
         return "pocketbook"
     elseif Device:isKindle() then
-        if Device:isHardFP() then
+        if isHardFP() then
             return "kindlehf"
         end
         return "kindle"
