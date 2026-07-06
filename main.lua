@@ -365,15 +365,15 @@ end
 
 -- Apply the filter to pre-rendered pages
 local original_Document_hintPage = Document.hintPage
-function Document:hintPage(pageno, zoom, rotation, gamma)
+function Document:hintPage(pageno, zoom, rotation, gamma, saturation, ...)
     if self.configurable.derainbow ~= 1 then
-        original_Document_hintPage(self, pageno, zoom, rotation, gamma)
+        original_Document_hintPage(self, pageno, zoom, rotation, gamma, saturation, ...)
         return
     end
 
     logger.dbg("hinting page", pageno)
 
-    local tile = self:renderPage(pageno, nil, zoom, rotation, gamma, true)
+    local tile = self:renderPage(pageno, nil, zoom, rotation, gamma, saturation, true)
     if tile then
         apply_derainbow_to_tile(tile)
     end
